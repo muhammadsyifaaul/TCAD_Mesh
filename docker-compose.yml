@@ -1,0 +1,252 @@
+# ─────────────────────────────────────────────────────────────
+# TCAD Mesh — Docker Compose
+# Only `gateway` (8080) and `dashboard` (3000) are exposed
+# to the host. All inter-service communication uses the
+# internal `mesh` network.
+# ─────────────────────────────────────────────────────────────
+
+networks:
+  mesh:
+    driver: bridge
+
+services:
+
+  # ── Gateway ─────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: tcad-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      UPSTREAM_URL: http://target-app:8001
+      HONEYPOT_URL: http://honeypot:8002
+      CONTROL_URL:  http://control-api:8003
+      # Explicit poll interval — makes the 500ms default visible and
+      # configurable without editing .env. This is the value the gateway
+      # uses to refresh its in-memory honeytoken store from control-api.
+      HONEYTOKEN_POLL_MS: "500"
+    depends_on:
+      target-app:
+        condition: service_healthy
+      honeypot:
+        condition: service_healthy
+      control-api:
+        condition: service_healthy
+    networks:
+      - mesh
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Target-App ──────────────────────────────────────────────
+  target-app:
+    build:
+      context: ./target-app
+      dockerfile: Dockerfile
+    container_name: tcad-target-app
+    restart: unless-stopped
+    expose:
+      - "8001"
+    env_file:
+      - .env
+    networks:
+      - mesh
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Honeypot ─────────────────────────────────────────────────
+  honeypot:
+    build:
+      context: ./honeypot
+      dockerfile: Dockerfile
+    container_name: tcad-honeypot
+    restart: unless-stopped
+    expose:
+      - "8002"
+    env_file:
+      - .env
+    networks:
+      - mesh
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Control-API ──────────────────────────────────────────────
+  # NO Docker socket mount. Calls attacker-sim over HTTP.
+  control-api:
+    build:
+      context: ./control-api
+      dockerfile: Dockerfile
+    container_name: tcad-control-api
+    restart: unless-stopped
+    expose:
+      - "8003"
+    env_file:
+      - .env
+    environment:
+      GATEWAY_URL: http://gateway:8080
+      CONTROL_URL: http://control-api:8003
+      ATTACKER_SIM_URL: http://attacker-sim:8004
+    volumes:
+      - control-api-data:/app/data
+    networks:
+      - mesh
+    # NOTE: No depends_on attacker-sim — control-api calls it over HTTP on demand,
+      # not at startup. This avoids the circular dependency:
+      # attacker-sim → gateway → control-api → attacker-sim.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Dashboard ────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: tcad-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      control-api:
+        condition: service_healthy
+    networks:
+      - mesh
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Attacker-Sim ─────────────────────────────────────────────
+  # Long-running HTTP service. control-api calls POST /run over
+  # the internal network — no Docker socket required.
+  attacker-sim:
+    build:
+      context: ./attacker-sim
+      dockerfile: Dockerfile
+    container_name: tcad-attacker-sim
+    restart: unless-stopped
+    expose:
+      - "8004"
+    env_file:
+      - .env
+    environment:
+      GATEWAY_URL: http://gateway:8080
+      CONTROL_URL: http://control-api:8003
+    volumes:
+      - results-data:/results
+    networks:
+      - mesh
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Bench ────────────────────────────────────────────────────
+  bench:
+    build:
+      context: ./bench
+      dockerfile: Dockerfile
+    container_name: tcad-bench
+    environment:
+      GATEWAY_URL: http://gateway:8080
+      CONTROL_URL: http://control-api:8003
+      RESULTS_PATH: /results/bench.json
+    volumes:
+      - results-data:/results
+    networks:
+      - mesh
+    depends_on:
+      gateway:
+        condition: service_healthy
+      control-api:
+        condition: service_healthy
+    profiles:
+      - bench
+
+  # ── Hey Bench (Go load generator, in-network) ──────────────────
+  hey-bench:
+    build:
+      context: ./bench/hey-bench
+      dockerfile: Dockerfile
+    container_name: tcad-hey-bench
+    volumes:
+      - results-data:/results
+      - ./bench/hey-bench/run-bench.sh:/bench/run-bench.sh:ro
+    networks:
+      - mesh
+    depends_on:
+      gateway:
+        condition: service_healthy
+      target-app:
+        condition: service_healthy
+    profiles:
+      - bench
+
+  # ── K6 Bench (open-loop latency, in-network) ──────────────────
+  k6-bench:
+    image: grafana/k6:latest
+    container_name: tcad-k6-bench
+    volumes:
+      - results-data:/results
+      - ./bench/k6-bench/open-loop.js:/bench/open-loop.js:ro
+      - ./bench/k6-bench/run-open-loop.sh:/bench/run-open-loop.sh:ro
+    networks:
+      - mesh
+    depends_on:
+      gateway:
+        condition: service_healthy
+      target-app:
+        condition: service_healthy
+    entrypoint: ["sh"]
+    profiles:
+      - bench
+
+  # ── Redis (Mode 2 only) ──────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: tcad-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    networks:
+      - mesh
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles:
+      - mode2
+
+volumes:
+  control-api-data:
+  results-data:

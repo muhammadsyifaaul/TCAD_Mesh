@@ -1,0 +1,47 @@
+=== TCAD Mesh Clean Room Test ===
+
+
+[STEP 1] Verifying required tools
+  OK  docker found
+  OK  curl found
+  OK  Python: python
+  OK  Docker daemon running
+
+[STEP 2] Checking .env
+  OK  .env file present
+
+[STEP 3] docker compose up --build -d
+  OK  docker compose up completed
+
+[STEP 4] Waiting for all services to be healthy (max 120s)
+  OK  All 5 services healthy (0s)
+
+[STEP 5] Basic connectivity checks
+  OK  gateway ΓåÆ 200
+  OK  dashboard ΓåÆ 200
+  OK  control-api-via-dashboard-proxy ΓåÆ 200
+
+[STEP 6] Core detection pipeline (Gate T1)
+  OK  legit request ΓåÆ 200, body contains real target-app ID (DOC-1a2b3c4d5e6f)
+  OK  canary /admin ΓåÆ honeypot (body differs from legit: DOC-bb38a08ba32b Γëá DOC-1a2b3c4d5e6f)
+  OK  unknown path ΓåÆ 404
+
+[STEP 7] Events appear in control-api (Gate T2)
+  OK  control-api has 48 events (last 24h)
+
+[STEP 8] Dashboard loads and proxies API (Gate T3)
+  OK  dashboard HTML non-empty (331 bytes)
+  OK  dashboard has root div
+  OK  dashboard JS bundle non-empty: 165204 bytes (/assets/index-CfAwZedA.js)
+  OK  dashboard /stats proxy works
+  OK  dashboard /honeytokens contract: OBJECTS
+
+[STEP 9] Unit tests (Gate T4)
+  OK  gateway go test passed
+  OK  target-app pytest
+  OK  honeypot pytest
+  OK  control-api pytest (hermetic)
+  OK  dashboard vitest (component tests)
+
+======================================
+PASSED (24 checks)

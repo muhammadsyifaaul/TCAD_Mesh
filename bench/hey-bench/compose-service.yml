@@ -1,0 +1,18 @@
+  # ── Hey Bench (Go load generator, in-network) ──────────────────
+  hey-bench:
+    build:
+      context: ./bench/hey-bench
+      dockerfile: Dockerfile
+    container_name: tcad-hey-bench
+    volumes:
+      - results-data:/results
+      - ./bench/hey-bench/run-bench.sh:/bench/run-bench.sh:ro
+    networks:
+      - mesh
+    depends_on:
+      gateway:
+        condition: service_healthy
+      target-app:
+        condition: service_healthy
+    profiles:
+      - bench

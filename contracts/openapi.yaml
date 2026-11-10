@@ -1,0 +1,459 @@
+openapi: "3.1.0"
+info:
+  title: TCAD Mesh — Target-App (Mock Logistics API)
+  description: |
+    This is the canonical API contract for `target-app` (the "real" backend).
+    `honeypot` MUST implement every path with identical request/response schemas.
+    Schema parity is enforced by integration tests in Tier 1.
+  version: "1.0.0"
+  contact:
+    name: TCAD Mesh Team
+
+servers:
+  - url: http://localhost:8080
+    description: Via gateway (external)
+  - url: http://localhost:8001
+    description: Direct (internal / test only)
+
+tags:
+  - name: health
+    description: Service health
+  - name: shipments
+    description: Logistics shipment records
+  - name: manifests
+    description: Cargo manifests
+  - name: routes
+    description: Delivery route information
+  - name: tracking
+    description: Real-time tracking data
+
+paths:
+
+  # ── Health ──────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ── Shipments ───────────────────────────────────────────────
+  /api/v1/shipments:
+    get:
+      tags: [shipments]
+      summary: List shipments
+      operationId: listShipments
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_transit, delivered, cancelled]
+      responses:
+        "200":
+          description: Paginated shipment list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/shipments/{shipment_id}:
+    get:
+      tags: [shipments]
+      summary: Get shipment by ID
+      operationId: getShipment
+      parameters:
+        - $ref: "#/components/parameters/ShipmentIdParam"
+      responses:
+        "200":
+          description: Shipment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Manifests ───────────────────────────────────────────────
+  /api/v1/manifests:
+    get:
+      tags: [manifests]
+      summary: List cargo manifests
+      operationId: listManifests
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Paginated manifest list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManifestListResponse"
+
+  /api/v1/manifests/{manifest_id}:
+    get:
+      tags: [manifests]
+      summary: Get manifest by ID
+      operationId: getManifest
+      parameters:
+        - name: manifest_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^MNF-[0-9a-f]{12}$"
+            example: "MNF-4a3b2c1d0e9f"
+      responses:
+        "200":
+          description: Manifest detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Routes ──────────────────────────────────────────────────
+  /api/v1/routes:
+    get:
+      tags: [routes]
+      summary: List delivery routes
+      operationId: listRoutes
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Route list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteListResponse"
+
+  /api/v1/routes/{route_id}:
+    get:
+      tags: [routes]
+      summary: Get route by ID
+      operationId: getRoute
+      parameters:
+        - name: route_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^RTE-[0-9a-f]{12}$"
+            example: "RTE-1a2b3c4d5e6f"
+      responses:
+        "200":
+          description: Route detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Route"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Tracking ─────────────────────────────────────────────────
+  /api/v1/tracking/{shipment_id}:
+    get:
+      tags: [tracking]
+      summary: Get tracking events for a shipment
+      operationId: getTracking
+      parameters:
+        - $ref: "#/components/parameters/ShipmentIdParam"
+      responses:
+        "200":
+          description: Tracking event list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackingResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    ShipmentIdParam:
+      name: shipment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^DOC-[0-9a-f]{12}$"
+        example: "DOC-1a2b3c4d5e6f"
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+
+    HealthResponse:
+      type: object
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        service:
+          type: string
+          example: target-app
+        version:
+          type: string
+          example: "0.1.0"
+
+    ErrorResponse:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "resource not found"
+        code:
+          type: integer
+          example: 404
+
+    Pagination:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 142
+
+    # ── Shipment ─────────────────────────────────────────────
+    ShipmentStatus:
+      type: string
+      enum: [pending, in_transit, delivered, cancelled]
+
+    Shipment:
+      type: object
+      required: [id, status, origin, destination, carrier, created_at, updated_at, manifest_id]
+      properties:
+        id:
+          type: string
+          pattern: "^DOC-[0-9a-f]{12}$"
+          example: "DOC-1a2b3c4d5e6f"
+          description: Honeytoken-compatible ID format
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        origin:
+          type: string
+          example: "Jakarta Warehouse A"
+        destination:
+          type: string
+          example: "Surabaya Hub 3"
+        carrier:
+          type: string
+          example: "Nusantara Express"
+        weight_kg:
+          type: number
+          format: float
+          example: 14.5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-11-01T08:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-11-05T14:30:00Z"
+        manifest_id:
+          type: string
+          pattern: "^MNF-[0-9a-f]{12}$"
+          example: "MNF-4a3b2c1d0e9f"
+        route_id:
+          type: string
+          pattern: "^RTE-[0-9a-f]{12}$"
+          example: "RTE-1a2b3c4d5e6f"
+
+    ShipmentListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Shipment"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    # ── Manifest ─────────────────────────────────────────────
+    ManifestItem:
+      type: object
+      required: [sku, description, quantity, unit_weight_kg]
+      properties:
+        sku:
+          type: string
+          example: "SKU-0042-B"
+        description:
+          type: string
+          example: "Automotive spare parts"
+        quantity:
+          type: integer
+          example: 120
+        unit_weight_kg:
+          type: number
+          format: float
+          example: 0.8
+
+    Manifest:
+      type: object
+      required: [id, shipment_id, items, total_weight_kg, created_at]
+      properties:
+        id:
+          type: string
+          pattern: "^MNF-[0-9a-f]{12}$"
+          example: "MNF-4a3b2c1d0e9f"
+        shipment_id:
+          type: string
+          pattern: "^DOC-[0-9a-f]{12}$"
+          example: "DOC-1a2b3c4d5e6f"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManifestItem"
+        total_weight_kg:
+          type: number
+          format: float
+          example: 96.0
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-11-01T07:55:00Z"
+
+    ManifestListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Manifest"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    # ── Route ────────────────────────────────────────────────
+    RouteStop:
+      type: object
+      required: [location, eta]
+      properties:
+        location:
+          type: string
+          example: "Semarang Transfer Hub"
+        eta:
+          type: string
+          format: date-time
+          example: "2026-11-03T10:00:00Z"
+        arrived_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    Route:
+      type: object
+      required: [id, shipment_id, stops, created_at]
+      properties:
+        id:
+          type: string
+          pattern: "^RTE-[0-9a-f]{12}$"
+          example: "RTE-1a2b3c4d5e6f"
+        shipment_id:
+          type: string
+          pattern: "^DOC-[0-9a-f]{12}$"
+          example: "DOC-1a2b3c4d5e6f"
+        stops:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteStop"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-11-01T08:05:00Z"
+
+    RouteListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Route"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    # ── Tracking ─────────────────────────────────────────────
+    TrackingEvent:
+      type: object
+      required: [ts, location, status, message]
+      properties:
+        ts:
+          type: string
+          format: date-time
+          example: "2026-11-02T09:15:00Z"
+        location:
+          type: string
+          example: "Semarang Transfer Hub"
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        message:
+          type: string
+          example: "Package arrived at transfer hub"
+
+    TrackingResponse:
+      type: object
+      required: [shipment_id, events]
+      properties:
+        shipment_id:
+          type: string
+          pattern: "^DOC-[0-9a-f]{12}$"
+          example: "DOC-1a2b3c4d5e6f"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackingEvent"

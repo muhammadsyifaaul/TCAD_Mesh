@@ -1,0 +1,80 @@
+# dashboard/nginx.conf.template
+# Processed by envsubst at container startup — ${INTERNAL_KEY} is substituted
+# with the real secret from the environment. The final file is written to
+# /etc/nginx/conf.d/dashboard.conf before nginx starts.
+# The key is NEVER baked into the image and NEVER sent to the browser.
+
+server {
+    listen 3000;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ── Health ──────────────────────────────────────────────────
+    location = /health {
+        default_type application/json;
+        return 200 '{"status":"ok","service":"dashboard","version":"0.1.0"}';
+    }
+
+    # ── READ endpoints (no auth required by control-api) ────────
+    # GET /stats, GET /events, GET /quarantine, GET /honeytokens,
+    # GET /sim/status  — forwarded as-is
+    location ~ ^/(stats|events|honeytokens|sim/status)(/.*)?$ {
+        proxy_pass              http://control-api:8003;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_read_timeout      10s;
+        proxy_connect_timeout   5s;
+    }
+
+    # GET /quarantine (list) — no auth
+    location = /quarantine {
+        proxy_pass              http://control-api:8003/quarantine;
+        proxy_set_header        Host $host;
+        proxy_read_timeout      10s;
+    }
+
+    # ── WRITE endpoints — nginx injects X-Internal-Key ──────────
+    # POST /sim/run
+    location = /sim/run {
+        proxy_pass              http://control-api:8003/sim/run;
+        proxy_method            POST;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        Content-Type application/json;
+        proxy_set_header        X-Internal-Key "${INTERNAL_KEY}";
+        proxy_pass_request_body on;
+        proxy_read_timeout      30s;
+    }
+
+    # POST /quarantine/{identity}/release
+    location ~ ^/quarantine/(.+)/release$ {
+        proxy_pass              http://control-api:8003/quarantine/$1/release;
+        proxy_method            POST;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        X-Internal-Key "${INTERNAL_KEY}";
+        proxy_read_timeout      10s;
+    }
+
+    # POST /reset — clears all demo data (events, quarantine, honeytokens)
+    location = /reset {
+        proxy_pass              http://control-api:8003/reset;
+        proxy_method            POST;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        X-Internal-Key "${INTERNAL_KEY}";
+        proxy_read_timeout      10s;
+    }
+
+    # ── SPA fallback ─────────────────────────────────────────────
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ── Security headers ─────────────────────────────────────────
+    add_header X-Frame-Options        "DENY"        always;
+    add_header X-Content-Type-Options "nosniff"     always;
+    add_header Referrer-Policy        "no-referrer" always;
+}

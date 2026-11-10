@@ -1,0 +1,43 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.pyc
+
+# Go
+gateway/gateway
+gateway/*.exe
+gateway/vendor/
+
+# Node / React
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+control-api/data/
+results/bench*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp

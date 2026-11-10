@@ -1,0 +1,79 @@
+[1m═══════════════════════════════════════════════[0m
+[1m TCAD Mesh — End-to-End Test Suite[0m
+[1m═══════════════════════════════════════════════[0m
+
+[1mPreflight: checking service health…[0m
+[32m  All services healthy.[0m
+
+[1mGate T1 — Mode 1 Core Pipeline[0m
+  [36m→[0m T1.1 Legit request to gateway proxied to target-app
+[32m  ✅  T1.1 legit request returns 200 (got 200)[0m
+  [36m→[0m   Legit shipment ID: DOC-1a2b3c4d5e6f
+  [36m→[0m T1.2 Canary path /admin → honeypot (200)
+[32m  ✅  T1.2 canary path returns 200 (honeypot) (got 200)[0m
+  [36m→[0m T1.3 Quarantined identity follow-up → honeypot (body differs from legit)
+  [36m→[0m   Quarantined shipment ID: DOC-ecb1a1d7205e (legit was: DOC-1a2b3c4d5e6f)
+[32m  ✅  T1.3 quarantined body differs from legit (honeypot data confirmed)[0m
+  [36m→[0m T1.4 Enum detection: 7 x 404 → ENUM_DETECTED
+[32m  ✅  T1.4 ENUM_DETECTED fired (2 events)[0m
+  [36m→[0m T1.5 Header normalisation
+[32m  ✅  T1.5a Server: nginx[0m
+[32m  ✅  T1.5b no X-Powered-By[0m
+  [36m→[0m T1.6 Unknown path returns 404
+[32m  ✅  T1.6 unknown path returns 404 (got 404)[0m
+
+[1mGate T2 — Control-API, Events, Quarantine[0m
+  [36m→[0m T2.1 CANARY_HIT event recorded in control-api
+[32m  ✅  T2.1 CANARY_HIT events: 1[0m
+  [36m→[0m T2.2 Active quarantine list
+[32m  ✅  T2.2 Active quarantines: 1[0m
+  [36m→[0m T2.3 Quarantine release propagation (≤2s) — body must match legit
+  [36m→[0m   Released ID: DOC-1a2b3c4d5e6f (legit was: DOC-1a2b3c4d5e6f)
+[32m  ✅  T2.3 released identity gets real target-app data (matches legit)[0m
+  [36m→[0m T2.6 Quarantine sync race: add then immediately check → honeypot data (differs from legit)
+  [36m→[0m   Race ID: DOC-bdc95129bb11 (legit was: DOC-1a2b3c4d5e6f)
+[32m  ✅  T2.6 quarantine holds even before control-api confirms (honeypot data)[0m
+
+  [36m→[0m T2.4 Gateway survives control-api downtime
+[32m  ✅  T2.4 gateway returns 200 while control-api is down (got 200)[0m
+  [36m→[0m   Waiting for control-api to recover…
+[32m  ✅  control-api recovered after 1s[0m
+[1mGate T2.5 — Honeytoken Reuse Attribution[0m
+  [36m→[0m T2.5 Honeytoken reuse detection
+  [36m→[0m   Captured honeytoken: DOC-13fc926c39c6
+[32m  ✅  T2.5 HONEYTOKEN_REUSED: 1 events, 1 with correct session attribution[0m
+
+[1mGate T3 — Attacker-Sim Allowlist[0m
+  [36m→[0m T3.1 Allowlist rejects external IP
+[32m  ✅  T3.1 external IP rejected by allowlist (got REJECTED)[0m
+  [36m→[0m T3.2 Dashboard API contract: GET /honeytokens returns objects
+[32m  ✅  T3.2 honeytokens response: OBJECTS[0m
+  [36m→[0m T3.3 Dashboard renders (HTML + JS bundle)
+[32m  ✅  T3.3a dashboard index.html has root div[0m
+[32m  ✅  T3.3b dashboard JS bundle loads (/assets/index-CfAwZedA.js)[0m
+
+[1mGate T4 — Hardening[0m
+  [36m→[0m T4.1 Oversized request body returns 413
+[32m  ✅  T4.1 body > 1MB returns 413[0m
+  [36m→[0m T4.2 /health response time < 200ms
+[32m  ✅  T4.2 /health latency: 38ms[0m
+
+[1mGate T5 — Full Demo Scenario (end-to-end story)[0m
+  [36m→[0m T5 Full-demo scenario — triggering via POST /sim/run full...
+[32m  ✅  T5.0 sim/run accepted — run_id: 1ead38f0-50a5-4d2e-8fc4-a9da92af887b[0m
+  [36m→[0m   Waiting for full scenario to complete (max 120 s)...
+[32m  ✅  T5.1 full scenario completed[0m
+  [36m→[0m T5.2 Checking required event types after full scenario...
+[32m  ✅  T5.2a CANARY_HIT: CANARY_HIT × 1[0m
+[32m  ✅  T5.2b QUARANTINED: QUARANTINED × 2[0m
+[32m  ✅  T5.2c ENUM_DETECTED: ENUM_DETECTED × 4[0m
+[32m  ✅  T5.2d TARPIT_ACTIVE: TARPIT_ACTIVE × 4[0m
+[32m  ✅  T5.2e HONEYTOKEN_ISSUED: HONEYTOKEN_ISSUED × 32[0m
+[32m  ✅  T5.2f HONEYTOKEN_REUSED: HONEYTOKEN_REUSED × 1[0m
+  [36m→[0m T5.3 HONEYTOKEN_REUSED original_session attribution...
+[32m  ✅  T5.3 HONEYTOKEN_REUSED: 1 event(s), 1 with correct attribution[0m
+  [36m→[0m T5.4 Legit traffic survived the attack...
+[32m  ✅  T5.4 legit client gets 200 after full scenario (got 200)[0m
+
+[1mSummary[0m
+[32m✅  ALL 29 TESTS PASSED[0m

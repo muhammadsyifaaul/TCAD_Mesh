@@ -3,16 +3,38 @@
  * Root layout — dark-mode operator dashboard.
  * Every panel is wrapped in an ErrorBoundary so one panel's failure
  * shows "panel unavailable" instead of blanking the page.
+ *
+ * Simple hash-based routing: #/ or empty = main dashboard, #/bms = BMS Simulator.
+ * No react-router dependency — just window.location.hash.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ErrorBoundary }    from './components/ErrorBoundary';
 import { StatsPanel }       from './components/StatsPanel';
 import { EventTimeline }    from './components/EventTimeline';
 import { QuarantineTable }  from './components/QuarantineTable';
 import { HoneytokenPanel }  from './components/HoneytokenPanel';
 import { SimPanel }         from './components/SimPanel';
+import { BmsSimulator }     from './components/BmsSimulator';
+
+function useHashRoute() {
+  const [route, setRoute] = useState(() => {
+    const h = window.location.hash.replace(/^#\/?/, '');
+    return h === 'bms' ? 'bms' : 'dashboard';
+  });
+  useEffect(() => {
+    const onHash = () => {
+      const h = window.location.hash.replace(/^#\/?/, '');
+      setRoute(h === 'bms' ? 'bms' : 'dashboard');
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  return route;
+}
 
 export default function App() {
+  const route = useHashRoute();
+
   return (
     <div style={styles.root}>
       <header style={styles.header}>
@@ -21,35 +43,53 @@ export default function App() {
           <span style={styles.logoText}>TCAD Mesh</span>
           <span style={styles.logoSub}>Dasbor Operator</span>
         </div>
-        <div style={styles.badge}>Mode 1 · Pertahanan Aktif</div>
+        <div style={styles.nav}>
+          <a
+            href="#/"
+            style={{ ...styles.navLink, ...(route === 'dashboard' ? styles.navLinkActive : {}) }}
+          >Dasbor</a>
+          <a
+            href="#/bms"
+            style={{ ...styles.navLink, ...(route === 'bms' ? styles.navLinkActive : {}) }}
+          >BMS Simulator</a>
+          <span style={styles.badge}>Mode 1 · Pertahanan Aktif</span>
+        </div>
       </header>
 
-      <main style={styles.main}>
-        {/* Row 1: Stats + Sim Control */}
-        <div style={styles.row2}>
+      {route === 'bms' ? (
+        <main style={styles.main}>
           <ErrorBoundary>
-            <StatsPanel />
+            <BmsSimulator />
           </ErrorBoundary>
-          <ErrorBoundary>
-            <SimPanel />
-          </ErrorBoundary>
-        </div>
+        </main>
+      ) : (
+        <main style={styles.main}>
+          {/* Row 1: Stats + Sim Control */}
+          <div style={styles.row2}>
+            <ErrorBoundary>
+              <StatsPanel />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <SimPanel />
+            </ErrorBoundary>
+          </div>
 
-        {/* Row 2: Event Timeline (full width) */}
-        <ErrorBoundary>
-          <EventTimeline />
-        </ErrorBoundary>
+          {/* Row 2: Event Timeline (full width) */}
+          <ErrorBoundary>
+            <EventTimeline />
+          </ErrorBoundary>
 
-        {/* Row 3: Quarantine + Honeytokens */}
-        <div style={styles.row2}>
-          <ErrorBoundary>
-            <QuarantineTable />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <HoneytokenPanel />
-          </ErrorBoundary>
-        </div>
-      </main>
+          {/* Row 3: Quarantine + Honeytokens */}
+          <div style={styles.row2}>
+            <ErrorBoundary>
+              <QuarantineTable />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <HoneytokenPanel />
+            </ErrorBoundary>
+          </div>
+        </main>
+      )}
 
       <footer style={styles.footer}>
         TCAD Mesh v0.1.0 · Kartika Cyber Hackathon 2026 · Semua data adalah waktu nyata
@@ -95,6 +135,9 @@ const styles = {
   logoText: { fontSize: 18, fontWeight: 700, color: '#e2e8f0', letterSpacing: -0.5 },
   logoSub:  { fontSize: 12, color: '#475569', marginLeft: 4 },
   badge:    { fontSize: 11, fontWeight: 700, color: '#4ade80', background: '#14532d44', border: '1px solid #14532d', borderRadius: 20, padding: '4px 12px', letterSpacing: 0.5 },
+  nav:       { display: 'flex', alignItems: 'center', gap: 12 },
+  navLink:   { fontSize: 13, fontWeight: 600, color: '#64748b', textDecoration: 'none', padding: '4px 12px', borderRadius: 6, transition: 'color 0.15s' },
+  navLinkActive: { color: '#93c5fd', background: '#1e3a5f' },
   main: {
     flex: 1,
     display: 'flex',

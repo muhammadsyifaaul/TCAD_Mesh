@@ -1,6 +1,8 @@
 # Environment
 .env
 *.env
+env/
+.env/
 
 # Python
 __pycache__/
@@ -23,6 +25,12 @@ gateway/vendor/
 dashboard/node_modules/
 dashboard/dist/
 dashboard/.vite/
+# vitest scratch output files
+dashboard/vitest_*.txt
+dashboard/build_out.txt
+dashboard/vitest_err.txt
+# Generated nginx config (expanded from template at runtime — may contain substituted secret)
+dashboard/nginx.conf
 
 # SQLite
 *.db
@@ -41,3 +49,11 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 *.swp
+
+# Log / scratch files produced at root during testing
+*.log
+before.txt
+before_err.txt
+
+# Playwright screenshots (generated artifacts, not source)
+results/bms-screenshots/

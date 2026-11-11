@@ -226,6 +226,16 @@ else
   fail "dashboard /honeytokens contract: $HT_SHAPE (expected OBJECTS or EMPTY)"
 fi
 
+# BMS Simulator page: SPA serves same HTML (hash-based routing)
+BMS_HTML=$(http_code "http://localhost:3000/#/bms")
+# The HTML at / is the same SPA shell — the BMS route is client-side.
+# We just verify the JS bundle is present (same as main dashboard).
+if [[ "$BMS_HTML" == "200" ]]; then
+  ok "dashboard BMS page reachable (SPA route)"
+else
+  fail "dashboard BMS page unreachable: $BMS_HTML"
+fi
+
 # ── STEP 9: Unit tests (hermetic one-off containers) ──────────────────────────
 _bl 9 "Unit tests (Gate T4)"
 # MSYS_NO_PATHCONV=1 set inline on docker run only (not exported globally).

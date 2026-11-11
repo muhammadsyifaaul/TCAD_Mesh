@@ -182,6 +182,28 @@ legitimate users see nothing different. One `docker compose up` to deploy."
 
 ---
 
+## BMS Simulator (Optional — Minute 8:00–9:00)
+
+**Say:** "For a visual walkthrough, let's switch to the BMS Simulator page."
+
+**Show in browser:**
+1. Click **BMS Simulator** in the nav bar (or open `http://localhost:3000/#/bms`)
+2. Point out the banner: "Simulasi ilustratif, bukan sistem BMS TNI AD."
+3. Point out the Batasan box — three honest limitations
+4. Click **▶ Putar** to auto-play all 5 steps, or use **⏭ Lanjut** to step through manually
+
+**Steps:**
+1. **Operasi Normal** — Commander sees real shipment positions and routes
+2. **Pengintaian Musuh & Tarpit** — Adversary scans 404 paths, gets tarpit delay
+3. **Canary Terpicu & Penyesatan** — Adversary hits /admin, gets honeypot fake data
+4. **Honeytoken Dipakai Ulang** — Adversary reuses token, HONEYTOKEN_REUSED fires
+5. **Operator Mengarantina** — Operator releases, adversary gets real data
+
+**Say:** "Both panels go through the same real gateway. The left side sees real data,
+the right side gets misled. Every event you see is fetched from the real control-api."
+
+---
+
 ## Backup Commands (if something fails)
 
 ```bash

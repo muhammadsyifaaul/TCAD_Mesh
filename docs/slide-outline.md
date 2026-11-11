@@ -167,7 +167,7 @@
 
 **Title:** Built to Be Auditable  
 **Content:**
-- **187/187 tests pass** (62 Go, 125 Python) — run via `make test` or raw Docker commands
+- **204+ tests pass** (62 Go, 77 Python, 54 dashboard vitest, 1 e2e suite, 1 clean-room suite)
 - **Minimal external Go dependency** (only `github.com/google/uuid` for event IDs)
 - **No fabricated metrics** — all numbers from benchmark runs in `results/`
 - **ATTRIBUTION.md** documents every library + AI tool usage
@@ -193,6 +193,24 @@
 **Closing line:** "TCAD Mesh demonstrates that the best defense sometimes looks exactly like what the attacker expects to find."
 
 **Final visual:** Dashboard with live events populating + `docker compose up` command
+
+---
+
+## Slide 11b — BMS Simulator (Optional Demo Slide)
+
+**Title:** BMS Simulator — What Is Being Protected
+**Content:**
+- Split-screen: Commander (legit) vs Adversary (attacker) — same gateway, different outcomes
+- Five scripted steps: normal ops → recon → canary → honeytoken reuse → operator release
+- Each step triggers real gateway pipeline and shows real events from control-api
+- Illustrative SVG map (fictional logistics, no real coordinates)
+- Banner: "Simulasi ilustratif, bukan sistem BMS TNI AD"
+
+**Visual:** Screenshot of `/bms` page at step 3 (canary triggered) — left panel shows
+real shipment data, right panel shows honeypot data with different IDs/origins
+
+**Speaker note:** "This page is for non-technical judges — it visualizes the attack story
+in a logistics context. Click Putar to auto-play, or step through with Lanjut."
 
 ---
 

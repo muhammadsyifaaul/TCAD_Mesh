@@ -2,6 +2,26 @@
 
 > **Kartika Cyber Hackathon 2026 — Defensive Shield Category**
 
+---
+
+## Ringkasan (Indonesian Summary)
+
+**TCAD Mesh** adalah *reverse-proxy gateway* pertahanan aktif yang melindungi API internal tanpa perlu mengubah backend atau klien yang sah. Sistem ini mendeteksi enumerasi path, menjebak penyerang di *tarpit*, mengalihkan mereka ke *honeypot* yang menyajikan data fiktif berlabel token pelacak (*honeytoken*), lalu mempersilakan operator mengelola respons secara waktu nyata dari dasbor.
+
+**Cara menjalankan** (satu perintah):
+```bash
+cp .env.example .env
+docker compose up --build -d
+# Buka http://localhost:3000 untuk dasbor operator
+# Gateway aktif di http://localhost:8080
+```
+
+**Halaman Simulator BMS** tersedia di `http://localhost:3000/#/bms` — tampilan split-screen Komandan vs Musuh yang menjalankan skenario serangan nyata melalui pipeline gateway yang sama.
+
+**Batasan penting:** Dalam Mode 1, penyerang dengan kredensial valid TIDAK terdeteksi; TCAD Mesh tidak mengenkripsi perintah (itu tugas mTLS); semua data logistik yang ditampilkan adalah fiktif.
+
+---
+
 TCAD Mesh is a transparent reverse-proxy gateway that detects API reconnaissance,
 silently traps scanners in a tarpit, redirects attackers to a honeypot serving
 laced fictitious data, and lets operators manage the response from a real-time
@@ -215,6 +235,39 @@ HONEYTOKEN_POLL_MS=500                 # honeytoken poll interval (ms)
 
 ---
 
+## BMS Simulator (Illustrative)
+
+The dashboard includes a `/bms` page (accessible from the nav bar) that shows
+judges **what is being protected and how**, as a split-screen:
+
+- **Left — Pandangan Komandan:** A legitimate client (`cmd-tablet-01`) sends
+  requests through the gateway and sees real shipment positions, routes, and
+  manifests.
+- **Right — Pandangan Musuh:** A simulated adversary performs reconnaissance:
+  path scanning → tarpit → canary hit → honeypot data (which differs from the
+  commander's view) → honeytoken reuse → operator quarantine release.
+
+Each step triggers the **real** gateway pipeline and shows **real** events
+fetched from control-api. The SVG map is purely illustrative — no real
+coordinates, no external map tiles.
+
+> **⚠ Simulasi ilustratif, bukan sistem BMS TNI AD.**
+>
+> In Mode 1, attackers using valid credentials on real routes are NOT detected.
+> TCAD Mesh does not encrypt commands (that is mTLS's job). Data shown is fictional.
+
+The BMS page accesses the gateway through a same-origin nginx proxy at `/gw/`
+(e.g. `/gw/api/v1/shipments` → `http://gateway:8080/api/v1/shipments`). This
+avoids CORS issues in the browser — the dashboard port stays bound to
+`127.0.0.1:3000` and the proxy is only for the demo UI. Canary paths like
+`/gw/admin` work transparently through the same proxy.
+
+Controls: Putar (Play), Jeda (Pause), Lanjut (Next), Reset. Six scripted steps
+walk through the complete attack story from a clean state (step 6 — release —
+is optional).
+
+---
+
 ## Limitations and Honest Boundaries
 
 This is a **hackathon prototype**, not a production-ready security product.
@@ -233,6 +286,7 @@ Known limitations:
 | Honeytoken body scan limit | Body scanning limited to 64 KB; large multipart uploads not scanned |
 | Honeytoken blind window | Tokens reused within 0–500ms of issuance may not be detected (gateway polls token list every 500ms; HONEYTOKEN_POLL_MS configurable) |
 | Dashboard bound to 127.0.0.1 | Not accessible from other machines without a reverse proxy; by design for demo safety |
+| BMS Simulator is illustrative | The `/bms` page shows a fictional logistics scenario for judges. It does not represent a real BMS (Battle Management System). Mode 1 does not detect attackers using valid credentials on real routes; TCAD Mesh does not encrypt commands (mTLS's job). Data shown is fictional. |
 
 TCAD Mesh is designed as a **complement** to existing security controls
 (WAF, IDS, authentication), not a replacement. It adds active deception and

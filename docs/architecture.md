@@ -49,6 +49,25 @@ graph TB
 **Exposure:** Only `gateway:8080` and `dashboard:3000` are bound to the host.
 All other services communicate on the internal Docker `mesh` network.
 
+### Dashboard Gateway Proxy (`/gw/`)
+
+The dashboard nginx config includes a `/gw/` location that proxies to
+`http://gateway:8080/` (internal Docker network). This allows the BMS Simulator
+page to make same-origin requests to the gateway without CORS issues — the
+browser sees all requests as coming from `localhost:3000`.
+
+| Browser request | Proxied to | Purpose |
+|-----------------|------------|---------|
+| `/gw/api/v1/shipments` | `http://gateway:8080/api/v1/shipments` | Legit/honeypot shipment data |
+| `/gw/api/v1/routes` | `http://gateway:8080/api/v1/routes` | Route information |
+| `/gw/admin` | `http://gateway:8080/admin` | Canary path (triggers detection) |
+| `/gw/nonexistent-*` | `http://gateway:8080/nonexistent-*` | Enum scan (404 → tarpit) |
+
+The proxy preserves the HTTP method, query string, `X-Device-ID` header, and
+request body. It does NOT add permissive CORS headers to the gateway — the
+gateway itself has no CORS configuration. The dashboard port stays bound to
+`127.0.0.1:3000`; the proxy is only for the demo UI.
+
 ---
 
 ## Mode 1 Detection Pipeline

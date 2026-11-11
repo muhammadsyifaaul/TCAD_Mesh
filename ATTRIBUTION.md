@@ -100,6 +100,23 @@ over a TCP socket (no Redis client library).
 | @vitejs/plugin-react | 4.3.1 | MIT | React JSX transform |
 | nginx | 1.27 (Alpine) | BSD-2-Clause | Static file server + API reverse proxy |
 
+### Dashboard test dependencies (devDependencies — not in production bundle)
+
+| Library | Version | License | Purpose |
+|---------|---------|---------|---------|
+| vitest | 1.6.0 | MIT | Unit test runner (54 render tests) |
+| @testing-library/react | 16.0.0 | MIT | React component testing utilities |
+| @testing-library/dom | 10.4.0 | MIT | DOM query/match utilities |
+| @testing-library/jest-dom | 6.4.6 | MIT | Custom jest-dom matchers |
+| @testing-library/user-event | 14.5.2 | MIT | User interaction simulation |
+| jsdom | 24.1.1 | MIT | DOM environment for vitest |
+
+### Browser test (optional, Docker-only — not a judge-machine requirement)
+
+| Tool | Image | License | Purpose |
+|------|-------|---------|---------|
+| Playwright | mcr.microsoft.com/playwright:v1.48.0-noble | Apache-2.0 | Headless browser test for BMS Simulator (catches CORS/console errors that curl cannot) |
+
 ---
 
 ## attacker-sim (Python)
@@ -158,4 +175,4 @@ The only pre-existing artifacts are the libraries listed above.
 
 ---
 
-*Last updated: 2026-11-07*
+*Last updated: 2026-11-12 — test counts: gateway Go (1 suite, ok 1.7s), target-app pytest (26 passed), honeypot pytest (27 passed), control-api pytest (27 passed), dashboard vitest (57 passed across 7 files), e2e (34/34), clean-room (25/25)*

@@ -68,6 +68,20 @@ server {
         proxy_read_timeout      10s;
     }
 
+    # ── Gateway proxy for BMS Simulator (same-origin, avoids CORS) ──────
+    # Only for the demo UI — dashboard port stays bound to 127.0.0.1.
+    # /gw/api/v1/shipments → http://gateway:8080/api/v1/shipments
+    # /gw/admin            → http://gateway:8080/admin  (canary path works)
+    # Preserves method, query string, X-Device-ID header, and request body.
+    location /gw/ {
+        proxy_pass              http://gateway:8080/;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_pass_request_body on;
+        proxy_read_timeout      30s;
+        proxy_connect_timeout   5s;
+    }
+
     # ── SPA fallback ─────────────────────────────────────────────
     location / {
         try_files $uri $uri/ /index.html;

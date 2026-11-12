@@ -284,12 +284,14 @@ else
   HT_ID_B="e2e-ht-attacker-B-$(date +%s)"
   http_code "$GATEWAY/api/v1/shipments?doc=$HT_TOKEN" \
        -H "X-Device-ID: $HT_ID_B" > /dev/null
-  sleep 4  # allow async HONEYTOKEN_REUSED event to dispatch and land
-
-  # Step 5: Check HONEYTOKEN_REUSED event for HT_ID_B specifically.
-  # Filter by the reusing identity to avoid false-positives from prior test runs.
-  HT_REUSE_RAW=$(curl -sf "$CTRL/events?type=HONEYTOKEN_REUSED&limit=100" 2>/dev/null || echo '{"data":[]}')
-  HT_REUSE_COUNT=$(echo "$HT_REUSE_RAW" | $PYTHON -c "import sys,json; print(json.load(sys.stdin)['total'])" 2>/dev/null || echo "0")
+  # Poll for HONEYTOKEN_REUSED event with bounded retry (up to 10s)
+  HT_REUSE_RAW='{"data":[],"total":0}'
+  for _retry in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 1
+    HT_REUSE_RAW=$(curl -sf "$CTRL/events?type=HONEYTOKEN_REUSED&limit=100" 2>/dev/null || echo '{"data":[]}')
+    HT_REUSE_COUNT=$(echo "$HT_REUSE_RAW" | $PYTHON -c "import sys,json; print(json.load(sys.stdin)['total'])" 2>/dev/null || echo "0")
+    (( HT_REUSE_COUNT >= 1 )) && break
+  done
 
   CORRECT_ATTR=$(echo "$HT_REUSE_RAW" | $PYTHON -c "
 import sys,json

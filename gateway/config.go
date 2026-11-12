@@ -62,7 +62,7 @@ func loadConfig() Config {
 		Mode2Enabled:     getEnvBool("MODE2_ENABLED", false),
 		MaxBodyBytes:     int64(getEnvInt("MAX_BODY_BYTES", 1<<20)),
 		UpstreamTimeout:  time.Duration(getEnvInt("UPSTREAM_TIMEOUT_MS", 10000)) * time.Millisecond,
-		HoneytokenPollMs: time.Duration(getEnvInt("HONEYTOKEN_POLL_MS", 500)) * time.Millisecond,
+		HoneytokenPollMs: time.Duration(getEnvInt("HONEYTOKEN_POLL_MS", 100)) * time.Millisecond,
 		// Mode 2
 		Mode2IntervalSec: getEnvInt("MODE2_INTERVAL_SEC", 60),
 		Mode2Grace:       getEnvInt("MODE2_GRACE", 2),

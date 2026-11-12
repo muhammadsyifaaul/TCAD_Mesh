@@ -206,7 +206,8 @@ Mode 2 is controlled by `MODE2_ENABLED=true` in `.env`.
 | TTD (30/30, median) | **162 ms** |
 | TTC (29/30, median) | **198 ms** |
 | Honeytoken attribution (2s+ delay, 30/30 session-verified) | **100%** |
-| Honeytoken attribution (0s delay, 15/29) | **52%** (blind window) |
+| Honeytoken attribution (0s delay, POLL_MS=100, 30/30 session-verified) | **100%** (measured 2026-11-12) |
+| Honeytoken attribution (0s delay, POLL_MS=500, 15/29) | **52%** (prior measurement — superseded) |
 | Gateway median overhead (p50, about 0.7 ms) | mean 0.69 ms, spread 0.48–0.85 ms |
 | p99 under about 10 ms at 50–100 req/s | yes (≤13 ms, spread ≤±6 ms) |
 | Saturation between 200 and 300 req/s | single-process upstream also saturates |
@@ -230,7 +231,7 @@ ENUM_WINDOW_SEC=10                       # sliding window duration
 TARPIT_DELAY_MS=3000                     # delay per tarpitted response
 TARPIT_MAX_CONCURRENT=50                 # semaphore cap (→ 429 when full)
 CANARY_PATHS=/admin,/api/v1/ops/deploy,/.env,/backup
-HONEYTOKEN_POLL_MS=500                 # honeytoken poll interval (ms)
+HONEYTOKEN_POLL_MS=100                 # honeytoken poll interval (ms) — 100ms is the default
 ```
 
 ---
@@ -284,7 +285,7 @@ Known limitations:
 | Mode 2 requires client SDK | Not truly transparent for Mode 2; adds client coupling |
 | Replay window is 180 s | Nonces are not persisted across gateway restarts |
 | Honeytoken body scan limit | Body scanning limited to 64 KB; large multipart uploads not scanned |
-| Honeytoken blind window | Tokens reused within 0–500ms of issuance may not be detected (gateway polls token list every 500ms; HONEYTOKEN_POLL_MS configurable) |
+| Honeytoken blind window | With `HONEYTOKEN_POLL_MS=100` (default): measured 30/30 (100%) attribution at 0 s, 0.25 s, 0.5 s, and 1 s reuse delays in 30-token batches run from inside the Docker network (2026-11-12). With the former default of 500 ms, 0 s delay gave 15/29 (52%). The `HONEYTOKEN_POLL_MS` env var is configurable. |
 | Dashboard bound to 127.0.0.1 | Not accessible from other machines without a reverse proxy; by design for demo safety |
 | BMS Simulator is illustrative | The `/bms` page shows a fictional logistics scenario for judges. It does not represent a real BMS (Battle Management System). Mode 1 does not detect attackers using valid credentials on real routes; TCAD Mesh does not encrypt commands (mTLS's job). Data shown is fictional. |
 

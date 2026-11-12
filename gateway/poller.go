@@ -54,7 +54,7 @@ func (p *Poller) Start(ctx context.Context) {
 func (p *Poller) honeytokenPoller(ctx context.Context) {
 	interval := p.cfg.HoneytokenPollMs
 	if interval <= 0 {
-		interval = 500 * time.Millisecond
+		interval = 100 * time.Millisecond
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()

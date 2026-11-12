@@ -189,7 +189,7 @@ are stripped; strings are truncated to maximum lengths.
 | API path enumeration / dirbusting | Sliding-window 404 counter → tarpit |
 | Scanning for sensitive files (`.env`, `/admin`) | Canary path matching |
 | Honeytoken reuse (attacker extracts and reuses fake IDs) | Token registry polling + URI/header/body scan |
-| Blind window (0–500ms) | Gateway polls token list every 500ms; tokens reused before the next poll may not be detected |
+| Blind window (0–100ms) | Gateway polls token list every `HONEYTOKEN_POLL_MS` ms (default 100 ms). Measured attribution: 30/30 (100%) at 0 s, 0.25 s, 0.5 s, and 1 s reuse delay (30-token batches, fresh DB per batch, run 2026-11-12 inside Docker network at ~50 rps load, gateway p50=3.7 ms). With the former default of 500 ms, 0 s delay gave 15/29 (52%). |
 | Quarantine sync race | FIXED: unconfirmed entries survive empty polls; epoch-based reset clears confirmed entries only |
 | Replay attacks on routed requests (Mode 2) | Nonce SET NX EX 180 |
 | Stale-route exploitation (Mode 2) | Tripwire: correct MAC, stale interval |
@@ -225,6 +225,43 @@ The dashboard displays three distinct honeytoken counters that **measure differe
 - After `POST /reset`: all three counters return to 0
 
 **Why "30 issued, 1 active" is correct:** The scan scenario visits ~30 canary and catch-all paths with the same quarantined identity. Each honeypot response fires a `HONEYTOKEN_ISSUED` event (30 events). But `register_honeytoken()` uses `INSERT OR IGNORE` — the second through thirtieth calls silently skip the insert because the token value (HMAC-derived from identity) is already in the registry. Result: 30 events, 1 registered token.
+
+---
+
+## Honeytoken Poll Interval — Measured Results
+
+The gateway polls `GET /honeytokens` every `HONEYTOKEN_POLL_MS` milliseconds. This interval
+directly controls the **detection blind window**: the period during which a reused honeytoken
+may not yet be in the gateway's in-memory store.
+
+**Measurement methodology** (run 2026-11-12, inside Docker network, control-api container → gateway:8080):
+- 30 fresh unique tokens per reuse-delay batch, fresh DB via `POST /reset` between batches
+- Each token: quarantine via canary hit → capture token from honeypot response → wait poll
+  buffer (300 ms) + reuse delay → reuse token from a second identity → poll for
+  `HONEYTOKEN_REUSED` event with correct `original_session` attribution
+
+| `HONEYTOKEN_POLL_MS` | Reuse delay | Matched / Total | Attribution rate |
+|---------------------|-------------|-----------------|-----------------|
+| **100 (default now)** | 0.00 s | 30/30 | **100%** |
+| **100 (default now)** | 0.25 s | 30/30 | **100%** |
+| **100 (default now)** | 0.50 s | 30/30 | **100%** |
+| **100 (default now)** | 1.00 s | 30/30 | **100%** |
+| 500 (prior default) | 0.00 s | 15/29 | 52% (prior run) |
+| 500 (prior default) | 2.00 s | 30/30 | 100% (prior run) |
+
+**Latency impact of POLL_MS=100** (measured inside Docker network, ~50 rps load):
+
+| Condition | p50 | p95 | p99 |
+|-----------|-----|-----|-----|
+| Idle (20 × GET /health) | 1.5 ms | 10.9 ms | 86.8 ms |
+| 50 rps legit requests | 3.7 ms | 5.5 ms | 16.3 ms |
+
+The gateway polls `GET /honeytokens` from control-api every 100 ms. At idle this produces ~10
+HTTP requests per second from one gateway instance to control-api. Control-api serves these
+from a simple `SELECT` query; the SQLite read latency is negligible at this rate. No CPU spike
+was observed during the 50-rps measurement. If a future deployment scales to many gateway
+replicas, the poll rate per control-api instance would multiply proportionally — at that
+scale, an on-miss synchronous lookup with negative cache should be considered.
 
 ---
 

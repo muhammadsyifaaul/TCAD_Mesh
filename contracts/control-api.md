@@ -156,6 +156,14 @@ Add an identity to quarantine (called by gateway).
 
 **Response `200 OK`:** If identity already quarantined (TTL is NOT reset).
 
+> **Operator quarantine limitation:** In Mode 1, the identity comes from a
+> client-controlled `X-Device-ID` header. Operator quarantine is only meaningful
+> when that identity comes from a trusted source — mTLS (Mode 2) or an
+> authenticated client application. It is an operator control that shortens the
+> attacker's window; it does NOT protect against stolen or spoofed device IDs.
+> A QUARANTINED event with `detail.source = "operator"` is emitted for operator-initiated
+> quarantines so the event timeline records the action.
+
 ---
 
 #### `POST /quarantine/{identity}/release` 🔒

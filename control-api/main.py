@@ -189,7 +189,9 @@ def list_quarantine():
 
 @app.post("/quarantine/{identity}", status_code=201, dependencies=[Depends(require_internal_key)])
 def add_quarantine(identity: str, body: QuarantineIn):
-    """Add an identity to quarantine. Does NOT reset TTL if already quarantined."""
+    """Add an identity to quarantine. Does NOT reset TTL if already quarantined.
+    When called by the operator (via dashboard), emits a QUARANTINED event with
+    detail.source='operator' so the event timeline shows the action."""
     now_iso = _now_iso()
     now_dt = datetime.now(timezone.utc)
 
@@ -214,6 +216,30 @@ def add_quarantine(identity: str, body: QuarantineIn):
             """INSERT OR REPLACE INTO quarantine (identity, quarantined_at, expires_at, reason)
                VALUES (?,?,?,?)""",
             (identity, now_iso, expires_iso, body.reason),
+        )
+        # Emit a QUARANTINED event so the timeline records the operator action
+        import json as _json
+        detail_json = _json.dumps({"source": "operator", "reason": body.reason, "ttl_sec": body.ttl_sec})
+        conn.execute(
+            """INSERT OR IGNORE INTO events
+               (id, ts, event_type, severity, mode, src_ip, identity,
+                session_id, method, path, user_agent, status, detail)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                str(__import__("uuid").uuid4()),
+                now_iso,
+                "QUARANTINED",
+                "high",
+                1,
+                "dashboard",    # src_ip — operator action from dashboard
+                identity,
+                "operator",     # session_id
+                "POST",
+                f"/quarantine/{identity}",
+                "dashboard/operator",
+                201,
+                detail_json,
+            ),
         )
 
     return {"identity": identity, "expires_at": expires_iso}

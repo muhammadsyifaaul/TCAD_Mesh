@@ -58,6 +58,18 @@ server {
         proxy_read_timeout      10s;
     }
 
+    # POST /quarantine/{identity} — operator-initiated quarantine (new)
+    location ~ ^/quarantine/([^/]+)$ {
+        proxy_pass              http://control-api:8003/quarantine/$1;
+        proxy_method            POST;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        Content-Type application/json;
+        proxy_set_header        X-Internal-Key "${INTERNAL_KEY}";
+        proxy_pass_request_body on;
+        proxy_read_timeout      10s;
+    }
+
     # POST /reset — clears all demo data (events, quarantine, honeytokens)
     location = /reset {
         proxy_pass              http://control-api:8003/reset;

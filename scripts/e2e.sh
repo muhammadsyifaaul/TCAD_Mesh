@@ -673,6 +673,91 @@ fi
 echo ""
 
 # ──────────────────────────────────────────────────────────────────────────────
+_bold "Gate T8 — Operator Manual Quarantine"
+# ──────────────────────────────────────────────────────────────────────────────
+# T8: Operator quarantines a legit identity via POST /quarantine/{identity};
+#     gateway picks it up within 2s and routes it to honeypot (body differs from
+#     a real legit client); release restores real data.
+# This exercises the operator-initiated path (no canary/enum trigger needed).
+
+_info "T8 Operator manual quarantine via control-api..."
+
+# Use fresh identities to avoid collision with T6
+CMD_T8="t8-legit-$(date +%s)"
+OPR_ID="t8-manual-$(date +%s)"
+
+# Step 1: Confirm legit identity gets real target-app data
+LEGIT_T8=$(curl -sf "$GATEWAY/api/v1/shipments" -H "X-Device-ID: $CMD_T8" 2>/dev/null) || LEGIT_T8=""
+LEGIT_T8_ID=$(echo "$LEGIT_T8" | $PYTHON -c \
+  "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else 'NONE')" \
+  2>/dev/null || echo "NONE")
+
+# Step 2: Operator manually quarantines OPR_ID via POST /quarantine/{identity}
+# (Uses X-Internal-Key — nginx proxy on dashboard:3000 injects this)
+curl -sf -X POST "$CTRL/quarantine/${OPR_ID}" \
+     -H "X-Internal-Key: $IKEY" \
+     -H "Content-Type: application/json" \
+     -d '{"reason":"OPERATOR_MANUAL","ttl_sec":60}' > /dev/null 2>&1 || true
+
+# Step 3: Wait for gateway quarantine poller to pick up the entry (≤2s)
+sleep 3
+
+# Step 4: OPR_ID should now be quarantined → gets honeypot data
+OPR_BODY=$(curl -sf "$GATEWAY/api/v1/shipments" -H "X-Device-ID: $OPR_ID" 2>/dev/null) || OPR_BODY=""
+OPR_ID_VAL=$(echo "$OPR_BODY" | $PYTHON -c \
+  "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else 'NONE')" \
+  2>/dev/null || echo "NONE")
+
+if [[ "$OPR_ID_VAL" != "$LEGIT_T8_ID" && "$OPR_ID_VAL" != "NONE" ]]; then
+  _green "  ✅  T8.1 operator-quarantined identity gets honeypot data ($OPR_ID_VAL ≠ $LEGIT_T8_ID)"
+  PASS=$((PASS+1))
+else
+  _red "  ❌  T8.1 operator-quarantined identity still gets real data ($OPR_ID_VAL == $LEGIT_T8_ID)"
+  FAIL=$((FAIL+1))
+fi
+
+# Step 5: Check QUARANTINED event was emitted with detail.source="operator"
+sleep 1
+Q_EVT=$(curl -sf "$CTRL/events?type=QUARANTINED&limit=50" 2>/dev/null || echo '{"data":[]}')
+OPERATOR_EVT=$(echo "$Q_EVT" | $PYTHON -c "
+import sys,json
+d=json.load(sys.stdin)
+found=0
+for ev in d.get('data',[]):
+    detail = ev.get('detail') or {}
+    if ev.get('identity','') == '${OPR_ID}' and detail.get('source','') == 'operator':
+        found=1
+print(found)
+" 2>/dev/null || echo "0")
+
+if (( OPERATOR_EVT >= 1 )); then
+  _green "  ✅  T8.2 QUARANTINED event with detail.source=operator recorded"
+  PASS=$((PASS+1))
+else
+  _red "  ❌  T8.2 no QUARANTINED event with detail.source=operator found"
+  FAIL=$((FAIL+1))
+fi
+
+# Step 6: Release → real data restored
+curl -sf -X POST "$CTRL/quarantine/${OPR_ID}/release" \
+     -H "X-Internal-Key: $IKEY" > /dev/null 2>&1 || true
+sleep 3
+REL_T8_BODY=$(curl -sf "$GATEWAY/api/v1/shipments" -H "X-Device-ID: $OPR_ID" 2>/dev/null) || REL_T8_BODY=""
+REL_T8_ID=$(echo "$REL_T8_BODY" | $PYTHON -c \
+  "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else 'NONE')" \
+  2>/dev/null || echo "NONE")
+
+if [[ "$REL_T8_ID" == "$LEGIT_T8_ID" ]]; then
+  _green "  ✅  T8.3 released operator-quarantined identity gets real data again ($REL_T8_ID)"
+  PASS=$((PASS+1))
+else
+  _red "  ❌  T8.3 released identity still gets honeypot data ($REL_T8_ID ≠ $LEGIT_T8_ID)"
+  FAIL=$((FAIL+1))
+fi
+
+echo ""
+
+# ──────────────────────────────────────────────────────────────────────────────
 _bold "Gate T7 — BMS Browser Test (Optional — requires Playwright image)"
 # ──────────────────────────────────────────────────────────────────────────────
 # This step uses a headless browser (Playwright) in a throwaway Docker container

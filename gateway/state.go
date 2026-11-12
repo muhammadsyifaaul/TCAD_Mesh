@@ -92,6 +92,39 @@ func (qs *QuarantineStore) IsQuarantined(identity string) bool {
 	return ok && time.Now().Before(e.ExpiresAt)
 }
 
+// AddFromAPI adds quarantine entries that exist in control-api but not in the
+// in-memory store. This handles operator-created quarantines that the gateway
+// never saw locally. Entries are added as confirmed (they're already in the DB).
+// Entries that already exist in-memory are left untouched (preserves TTL/state).
+func (qs *QuarantineStore) AddFromAPI(entries []struct {
+	Identity  string
+	ExpiresAt string
+	Reason    string
+}) {
+	now := time.Now()
+	qs.mu.Lock()
+	defer qs.mu.Unlock()
+	for _, e := range entries {
+		if _, exists := qs.entries[e.Identity]; exists {
+			continue // already tracked — do not reset TTL
+		}
+		expiresAt, err := time.Parse("2006-01-02T15:04:05Z", e.ExpiresAt)
+		if err != nil {
+			continue // malformed timestamp — skip
+		}
+		if !now.Before(expiresAt) {
+			continue // already expired — skip
+		}
+		qs.entries[e.Identity] = quarantineEntry{
+			ExpiresAt: expiresAt,
+			Reason:    e.Reason,
+			Confirmed: true, // already in DB — treat as confirmed
+			CreatedAt: now,
+		}
+		slog.Info("quarantine added from operator (control-api sync)", "identity", e.Identity)
+	}
+}
+
 // Release removes a quarantine entry (operator action).
 func (qs *QuarantineStore) Release(identity string) bool {
 	qs.mu.Lock()

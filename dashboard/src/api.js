@@ -69,6 +69,12 @@ export const api = {
       method: 'POST',
     }),
 
+  addQuarantine: (identity, reason, ttl_sec = 900) =>
+    _fetch(`/quarantine/${encodeURIComponent(identity)}`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, ttl_sec }),
+    }),
+
   runSim: (scenario) =>
     _fetch('/sim/run', {
       method: 'POST',

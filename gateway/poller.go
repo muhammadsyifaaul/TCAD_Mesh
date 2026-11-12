@@ -165,6 +165,7 @@ func (p *Poller) syncQuarantine() {
 		Data  []struct {
 			Identity  string `json:"identity"`
 			ExpiresAt string `json:"expires_at"`
+			Reason    string `json:"reason"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -180,4 +181,22 @@ func (p *Poller) syncQuarantine() {
 	// Epoch-aware sync: only removes confirmed entries that are absent from the
 	// active list (operator release) or whose epoch has advanced (POST /reset).
 	p.quarantine.SyncFromControlAPI(active, payload.Epoch)
+
+	// Operator-created quarantine enforcement:
+	// If an identity is active in control-api but not in the gateway's in-memory
+	// store, it was created by an operator (not by the gateway itself).
+	// Add it as a confirmed entry so the gateway enforces it immediately.
+	apiEntries := make([]struct {
+		Identity  string
+		ExpiresAt string
+		Reason    string
+	}, len(payload.Data))
+	for i, e := range payload.Data {
+		apiEntries[i] = struct {
+			Identity  string
+			ExpiresAt string
+			Reason    string
+		}{Identity: e.Identity, ExpiresAt: e.ExpiresAt, Reason: e.Reason}
+	}
+	p.quarantine.AddFromAPI(apiEntries)
 }

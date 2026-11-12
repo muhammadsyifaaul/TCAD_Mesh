@@ -1,0 +1,85 @@
+=== Honeytoken Blind Window Measurement ===
+HONEYTOKEN_POLL_MS = 100
+Batch size = 30 tokens per delay
+Delays = [0.0, 0.25, 0.5, 1.0] seconds
+
+Measuring idle /health latency...
+  Idle: p50=1.5ms, p95=10.9ms, p99=86.8ms
+
+Measuring 50 rps load latency (500 requests over 10s)...
+  50rps: {'total_requests': 500, 'successful': 500, 'errors': 0, 'p50': 3.7, 'p95': 5.5, 'p99': 16.3}
+
+Measuring attribution at 0.0s reuse delay (30 tokens)...
+  Result: 30/30 (100%) (matched=30, wrong_attr=0, missed=0)
+
+Measuring attribution at 0.25s reuse delay (30 tokens)...
+  Result: 30/30 (100%) (matched=30, wrong_attr=0, missed=0)
+
+Measuring attribution at 0.5s reuse delay (30 tokens)...
+  Result: 30/30 (100%) (matched=30, wrong_attr=0, missed=0)
+
+Measuring attribution at 1.0s reuse delay (30 tokens)...
+  Result: 30/30 (100%) (matched=30, wrong_attr=0, missed=0)
+
+
+=== Summary ===
+HONEYTOKEN_POLL_MS = 100
+Idle latency: p50=1.5ms, p95=10.9ms
+50 rps latency: p50=3.7ms, p95=5.5ms, errors=0
+
+Attribution rates:
+  0.0s delay: 30/30 (100%)
+  0.25s delay: 30/30 (100%)
+  0.5s delay: 30/30 (100%)
+  1.0s delay: 30/30 (100%)
+
+{
+  "poll_ms": 100,
+  "idle_latency": {
+    "p50": 1.5,
+    "p95": 10.9,
+    "p99": 86.8
+  },
+  "load_50rps": {
+    "total_requests": 500,
+    "successful": 500,
+    "errors": 0,
+    "p50": 3.7,
+    "p95": 5.5,
+    "p99": 16.3
+  },
+  "attribution": [
+    {
+      "delay_s": 0.0,
+      "total": 30,
+      "matched": 30,
+      "wrong_attribution": 0,
+      "missed": 0,
+      "rate": "30/30 (100%)"
+    },
+    {
+      "delay_s": 0.25,
+      "total": 30,
+      "matched": 30,
+      "wrong_attribution": 0,
+      "missed": 0,
+      "rate": "30/30 (100%)"
+    },
+    {
+      "delay_s": 0.5,
+      "total": 30,
+      "matched": 30,
+      "wrong_attribution": 0,
+      "missed": 0,
+      "rate": "30/30 (100%)"
+    },
+    {
+      "delay_s": 1.0,
+      "total": 30,
+      "matched": 30,
+      "wrong_attribution": 0,
+      "missed": 0,
+      "rate": "30/30 (100%)"
+    }
+  ]
+}

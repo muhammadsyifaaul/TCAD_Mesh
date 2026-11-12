@@ -1,0 +1,29 @@
+# docker-compose.mode2.yml
+# Override to enable Mode 2 for end-to-end testing.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.mode2.yml --profile mode2 up --build -d
+#
+# This file:
+#   - Activates the redis service (profile mode2)
+#   - Overrides gateway to enable Mode 2 with deterministic test settings
+#   - Sets MODE2_STRICT=true so non-/m/ canonical paths return 404
+
+services:
+  gateway:
+    environment:
+      MODE2_ENABLED: "true"
+      MODE2_SECRET: "mode2-e2e-test-secret-hackathon"
+      MODE2_INTERVAL_SEC: "30"
+      MODE2_GRACE: "1"
+      MODE2_STRICT: "true"
+      REDIS_URL: "redis://redis:6379/0"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  attacker-sim:
+    environment:
+      GATEWAY_URL: "http://gateway:8080"
+      MODE2_SECRET: "mode2-e2e-test-secret-hackathon"
+      MODE2_INTERVAL_SEC: "30"
+      MODE2_GRACE: "1"

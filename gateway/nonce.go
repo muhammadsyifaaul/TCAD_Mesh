@@ -60,8 +60,8 @@ func (r *redisStore) SetNX(ctx context.Context, key string, ttlSec int) (bool, e
 	}
 	defer conn.Close()
 
-	// SET key "" NX EX ttlSec
-	cmd := fmt.Sprintf("*5\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$0\r\n\r\n$2\r\nNX\r\n$2\r\nEX\r\n$%d\r\n%d\r\n",
+	// SET key "" NX EX ttlSec — 6 RESP bulk strings (SET, key, value, NX, EX, ttl)
+	cmd := fmt.Sprintf("*6\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$0\r\n\r\n$2\r\nNX\r\n$2\r\nEX\r\n$%d\r\n%d\r\n",
 		len(key), key, len(fmt.Sprintf("%d", ttlSec)), ttlSec)
 
 	deadline := time.Now().Add(2 * time.Second)

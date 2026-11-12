@@ -175,4 +175,4 @@ The only pre-existing artifacts are the libraries listed above.
 
 ---
 
-*Last updated: 2026-11-12 — test counts: gateway Go (1 suite, ok 1.7s), target-app pytest (26 passed), honeypot pytest (27 passed), control-api pytest (27 passed), dashboard vitest (57 passed across 7 files), e2e (34/34), clean-room (25/25)*
+*Last updated: 2026-11-12 — test counts: gateway Go (1 suite, ok 1.5s), target-app pytest (26 passed), honeypot pytest (27 passed), control-api pytest (27 passed), dashboard vitest (62 passed across 7 files), e2e Mode 1 (37/37), e2e Mode 2 (8/8), clean-room (25/25)*

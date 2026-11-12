@@ -167,7 +167,7 @@
 
 **Title:** Built to Be Auditable  
 **Content:**
-- **204+ tests pass** (62 Go, 77 Python, 54 dashboard vitest, 1 e2e suite, 1 clean-room suite)
+- **204+ tests pass** (62 Go + 77 Python + 62 dashboard vitest, 1 e2e suite 37/37, 1 Mode 2 e2e 8/8, 1 clean-room 25/25)
 - **Minimal external Go dependency** (only `github.com/google/uuid` for event IDs)
 - **No fabricated metrics** — all numbers from benchmark runs in `results/`
 - **ATTRIBUTION.md** documents every library + AI tool usage

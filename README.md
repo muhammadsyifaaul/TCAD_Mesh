@@ -20,6 +20,8 @@ docker compose up --build -d
 
 **Batasan penting:** Dalam Mode 1, penyerang dengan kredensial valid TIDAK terdeteksi; TCAD Mesh tidak mengenkripsi perintah (itu tugas mTLS); semua data logistik yang ditampilkan adalah fiktif.
 
+**Mode 2 (opsional, nonaktif secara default):** Mode 2 menambahkan *moving-target defense* berbasis HMAC — rute API berubah setiap interval, permintaan divalidasi dengan tanda tangan HMAC dan nonce anti-replay (Redis). Aktifkan dengan `docker compose -f docker-compose.yml -f docker-compose.mode2.yml --profile mode2 up --build -d`. Uji dengan `bash scripts/e2e-mode2.sh` (8/8 lulus). Berhenti dengan `docker compose -f docker-compose.yml -f docker-compose.mode2.yml --profile mode2 down -v`. Simulator BMS dan demo dasbor tetap Mode 1 saja.
+
 ---
 
 TCAD Mesh is a transparent reverse-proxy gateway that detects API reconnaissance,
@@ -233,6 +235,56 @@ TARPIT_MAX_CONCURRENT=50                 # semaphore cap (→ 429 when full)
 CANARY_PATHS=/admin,/api/v1/ops/deploy,/.env,/backup
 HONEYTOKEN_POLL_MS=100                 # honeytoken poll interval (ms) — 100ms is the default
 ```
+
+---
+
+## Mode 2 (Optional, Off by Default)
+
+Mode 2 adds time-based Moving-Target Defense (MTD) routing on top of Mode 1. When
+enabled, API paths change every `MODE2_INTERVAL_SEC` seconds using HMAC-derived route
+segments, and every request must carry an anti-replay signature with a unique nonce
+stored in Redis.
+
+**What it does:**
+- Routes change every interval: `/m/<interval>-<HMAC[:16]>/<canonical_path>`
+- Grace window: `±MODE2_GRACE` intervals accepted (default ±2)
+- Anti-replay: `X-Device-ID` + `X-Timestamp` + `X-Nonce` + `X-Signature` required; nonce cached in Redis (`SET NX EX 180`)
+- `MODE2_STRICT=true` (default): direct requests to canonical paths (without `/m/` prefix) return 404
+- Stale routes with valid MACs trigger `TRIPWIRE_HIT` → quarantine → honeypot redirect
+- Replayed requests with duplicate nonces trigger `REPLAY_REJECTED` → 401
+
+**How to start it:**
+```bash
+docker compose -f docker-compose.yml -f docker-compose.mode2.yml --profile mode2 up --build -d
+```
+This activates the Redis service (under the `mode2` profile) and enables Mode 2 on the gateway.
+
+**How to test it:**
+```bash
+bash scripts/e2e-mode2.sh    # 8/8 tests pass (verified 2026-11-12)
+```
+
+**How to stop it:**
+```bash
+docker compose -f docker-compose.yml -f docker-compose.mode2.yml --profile mode2 down -v
+```
+
+**Config variables** (set in `docker-compose.mode2.yml` override):
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MODE2_ENABLED` | `false` | Master on/off switch |
+| `MODE2_SECRET` | demo value in override | HMAC secret (shared between gateway and SDK) — **must be replaced** for any non-demo use |
+| `MODE2_INTERVAL_SEC` | `30` (override) / `60` (default) | Seconds per routing interval |
+| `MODE2_GRACE` | `1` (override) / `2` (default) | ±N intervals accepted |
+| `MODE2_STRICT` | `true` | Block non-`/m/` paths when Mode 2 enabled |
+| `NONCE_TTL_SEC` | `180` | Nonce expiry in Redis |
+
+**Limitations:**
+- Mode 2 requires a client SDK (`attacker-sim/sdk/mode2.py`) — not transparent like Mode 1
+- The `MODE2_SECRET` in `docker-compose.mode2.yml` is a demo value; replace it for any real deployment
+- The BMS Simulator and dashboard demo are Mode 1 only; they do not use Mode 2 routing
+- Nonces are not persisted across gateway restarts (in-memory fallback if Redis is down)
+- No performance claims are made for Mode 2; only functional verification (8/8 e2e pass) was measured
 
 ---
 

@@ -52,8 +52,11 @@ Thumbs.db
 
 # Log / scratch files produced at root during testing
 *.log
+*-out.txt
+*output.txt
 before.txt
 before_err.txt
+bench/test_redis_resp.py
 
 # Playwright screenshots (generated artifacts, not source)
 results/bms-screenshots/

@@ -140,26 +140,29 @@ delta is 50 new events for 50 tokens (100% per-batch attribution).
 
 ### Honeytoken Attribution Window
 
-> Measured 2026-11-08 · Inside Docker mesh · `results/bench_ht_window.json`
+> Measured 2026-11-12 · Inside Docker network · `bench/measure_blind_window.py`
 >
-> The gateway polls the honeytoken list from control-api every 2s. Tokens
-> reused before the next poll cycle may not yet be in the gateway's in-memory
-> store. This creates a "blind window" of 0–2s.
+> The gateway polls the honeytoken list from control-api every `HONEYTOKEN_POLL_MS` ms
+> (default 100 ms). Tokens reused before the next poll cycle may not yet be in the
+> gateway's in-memory store. This creates a "blind window" of 0–100ms.
 
-| Delay after issuance | Tokens tested | Events added to DB |
-|---------------------|---------------|-------------------|
-| 0s | 20 | 20 (estimated from delta) |
-| 1s | 20 | 20 |
-| 2s | 20 | 20 |
-| 3s | 20 | 19 |
+| `HONEYTOKEN_POLL_MS` | Reuse delay | Tokens tested | Matched | Rate |
+|---------------------|-------------|---------------|---------|------|
+| 100 (default) | 0.00 s | 30 | 30 | **100%** |
+| 100 (default) | 0.25 s | 30 | 30 | **100%** |
+| 100 (default) | 0.50 s | 30 | 30 | **100%** |
+| 100 (default) | 1.00 s | 30 | 30 | **100%** |
+| 500 (prior default) | 0.00 s | 29 | 15 | 52% |
 
-**Known limitation (documented in README.md and docs/architecture.md):**
-The 2-second polling interval creates a blind window where tokens reused
-within 0–2s of issuance may not be detected. In our tests, all delays showed
-~100% detection, but this is not guaranteed — detection depends on whether
-the gateway's poll cycle has refreshed its in-memory token set since the
-token was registered. The blind window is a design tradeoff: lower polling
-intervals reduce the blind window but increase control-api load.
+**Latency impact at POLL_MS=100** (measured inside Docker network):
+
+| Condition | p50 | p95 | p99 |
+|-----------|-----|-----|-----|
+| Idle (20 × GET /health) | 1.5 ms | 10.9 ms | 86.8 ms |
+| 50 rps (500 req over 10s) | 3.7 ms | 5.5 ms | 16.3 ms |
+
+The gateway polls `GET /honeytokens` from control-api every 100 ms (~10 req/s per
+gateway instance). SQLite SELECT query latency is negligible at this rate.
 
 ### In-Network Latency Benchmark (k6, open-loop, constant-arrival-rate)
 

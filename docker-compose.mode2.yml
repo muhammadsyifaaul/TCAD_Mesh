@@ -17,9 +17,10 @@ services:
       MODE2_GRACE: "1"
       MODE2_STRICT: "true"
       REDIS_URL: "redis://redis:6379/0"
-    depends_on:
-      redis:
-        condition: service_healthy
+    # No depends_on: redis here — redis is under the mode2 profile in the base
+    # compose file. When --profile mode2 is used, redis starts and the gateway
+    # connects to it on startup probe. Without the profile, the gateway falls
+    # back to in-memory nonce store (graceful degradation).
 
   attacker-sim:
     environment:

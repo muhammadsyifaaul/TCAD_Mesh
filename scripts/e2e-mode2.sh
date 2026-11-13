@@ -10,6 +10,10 @@
 #
 # Usage:  bash scripts/e2e-mode2.sh
 # Exit:   0 = all pass, 1 = failures
+#
+# NOTE: The --profile mode2 flag is REQUIRED — it activates the redis service.
+# Without it, docker-compose.mode2.yml alone will start the gateway with
+# MODE2_ENABLED=true but no Redis (gateway falls back to in-memory nonce store).
 
 set -uo pipefail
 
